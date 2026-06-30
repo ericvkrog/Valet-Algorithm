@@ -8,19 +8,46 @@ def make_slots():
         {f"C{i:02d}": {"stack": [], "max": 3} for i in range(1, 21)}
     )
 
+# scores every available lane for the incoming car and picks the one with the
+# lowest penalty. priority order: avoid blocking other cars, then prefer the
+# lane where a blocked car would be stuck the longest (so we can reshuffle it
+# sooner rather than holding it forever), then avoid wasting deep lane space.
 def park_car_smart(car_id, minutes, lot):
     best_slot, best_score = None, (999, 999, 999)
     for name, slot in lot.items():
         if len(slot["stack"]) >= slot["max"]:
             continue
+        # count how many cars already in this lane would be trapped behind the
+        # incoming car — a car is "blocked" if it has a shorter stay than ours,
+        # meaning it needs to leave first but we'd be sitting on top of it
         blocking = sum(1 for p in slot["stack"] if minutes > p["minutes"])
         if blocking > 0:
+            # find the shortest stay among the cars we'd block. we want to
+            # minimize the "worst victim" — ideally pick the lane where the
+            # car we block was going to leave the latest anyway (less urgency).
+            # but lower score wins, so we negate min_blocked: a larger
+            # min_blocked (car leaves later, less urgent) becomes a more
+            # negative number, which python sorts before a smaller negative —
+            # that makes "least urgent victim" the preferred lane.
             min_blocked = min(p["minutes"] for p in slot["stack"] if minutes > p["minutes"])
             secondary = -min_blocked
+            # dont bother tracking empty depth when we're already causing a
+            # conflict — blocking is the dominant concern
             empty_depth = 0
         else:
             secondary = 0
+            # no conflict here, so this car can safely go in any open lane.
+            # but single-deep (A) lanes can NEVER cause a reshuffle since they only
+            # ever hold 1 car, so theyre a zero-risk use of space. deep lanes (B/C)
+            # are more valuable because they can stack multiple compatible cars
+            # later (long-stay on bottom, short-stay on top). dont waste that
+            # flexibility on a car that didnt need it, save deep lanes for when
+            # we actually need to stack
             empty_depth = slot["max"] if slot["max"] > 1 else 0
+        # python compares tuples left to right, so blocking wins over everything:
+        # a lane with 0 blocks beats one with 1 no matter what secondary or
+        # empty_depth say. only when blocking is tied does secondary matter,
+        # and only when both are tied does empty_depth break it.
         score = (blocking, secondary, empty_depth)
         if score < best_score:
             best_score, best_slot = score, name
