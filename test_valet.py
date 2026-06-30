@@ -1,15 +1,5 @@
-import pytest
 import random
 import main
-
-
-@pytest.fixture
-def reset_slots():
-    for slot in main.slots.values():
-        slot["stack"].clear()
-    yield
-    for slot in main.slots.values():
-        slot["stack"].clear()
 
 
 def make_15_lanes():
@@ -40,17 +30,19 @@ def test_random_at_least_one_reshuffle_long_before_short():
     assert main.retrieve_car_from("long_car", lot) >= 1
 
 
-def test_lot_full_no_crash(reset_slots, capsys):
-    for slot in main.slots.values():
-        for i in range(slot["max"]):
-            slot["stack"].append({"id": f"dummy_{i}", "bucket": 0, "minutes": 30})
-    main.park_car("overflow", 30)
-    assert "lot is full" in capsys.readouterr().out
+def test_lot_full_no_crash():
+    # two single-deep lanes, fill both, then attempt a third car
+    lot = {"A": {"stack": [], "max": 1}, "B": {"stack": [], "max": 1}}
+    main.park_car_smart("car1", 30, lot)
+    main.park_car_smart("car2", 30, lot)
+    main.park_car_smart("overflow", 30, lot)
+    total = sum(len(s["stack"]) for s in lot.values())
+    assert total == 2  # overflow was silently rejected, not added
 
 
-def test_retrieve_nonexistent_no_crash(reset_slots, capsys):
-    main.retrieve_car("ghost")
-    assert "cant find" in capsys.readouterr().out
+def test_retrieve_nonexistent_no_crash():
+    lot = main.make_slots()
+    assert main.retrieve_car_from("ghost", lot) == 0
 
 
 def test_smart_beats_random_15_lanes_300_cars():

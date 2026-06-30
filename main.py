@@ -1,13 +1,5 @@
 import random
 
-# each slot is a lane in the lot, stack is the cars physically in it
-# 20 single-deep (A01-A20), 30 double-deep (B01-B30), 20 triple-deep (C01-C20) = 70 lanes
-slots = (
-    {f"A{i:02d}": {"stack": [], "max": 1} for i in range(1, 21)} |
-    {f"B{i:02d}": {"stack": [], "max": 2} for i in range(1, 31)} |
-    {f"C{i:02d}": {"stack": [], "max": 3} for i in range(1, 21)}
-)
-
 def get_bucket(minutes):
     # asking the customer how long theyll be when they drop off
     if minutes < 60:
@@ -17,47 +9,9 @@ def get_bucket(minutes):
     else:
         return 2  # padres game, long event, staying all night
 
-def park_car(car_id, minutes):
-    bucket = get_bucket(minutes)
-    best_slot = None
-    best_cost = 999  # just a big number so anything beats it on first check
-
-    for name, slot in slots.items():
-        if len(slot["stack"]) >= slot["max"]:
-            continue  # lane is full, move on
-        cost = 0
-        for parked in slot["stack"]:
-            if bucket > parked["bucket"]:
-                cost += 1  # new car is staying longer than someone deeper, well block them when they need to leave
-        if cost < best_cost:
-            best_cost = cost
-            best_slot = name  # this lane causes the least blocking later
-
-    if best_slot is None:
-        print(f"lot is full, cant park {car_id}")
-        return
-
-    slots[best_slot]["stack"].append({"id": car_id, "bucket": bucket, "minutes": minutes})
-    print(f"parked {car_id} in slot {best_slot}")
-
-def retrieve_car(car_id):
-    reshuffles = 0
-    for name, slot in slots.items():
-        stack = slot["stack"]
-        ids = [c["id"] for c in stack]
-        if car_id not in ids:
-            continue  # not in this lane, keep looking
-        while stack[-1]["id"] != car_id:
-            stack.pop()
-            reshuffles += 1  # had to pull another car out to get to this one
-        stack.pop()  # actually pulling the customers car out
-        print(f"got {car_id} from slot {name}, {reshuffles} reshuffle(s)")
-        return reshuffles
-    print(f"cant find {car_id} in the lot")
-
 
 def make_slots():
-    # same 70-lane layout as global slots above
+    # 20 single-deep, 30 double-deep, 20 triple-deep = 70 lanes
     return (
         {f"A{i:02d}": {"stack": [], "max": 1} for i in range(1, 21)} |
         {f"B{i:02d}": {"stack": [], "max": 2} for i in range(1, 31)} |
@@ -67,30 +21,13 @@ def make_slots():
 # smart version that works on a passed-in slots dict instead of global
 def park_car_smart(car_id, minutes, lot):
     bucket = get_bucket(minutes)
-    best_slot, best_score = None, (999, 999, 999)
-
+    best_slot, best_cost = None, 999
     for name, slot in lot.items():
         if len(slot["stack"]) >= slot["max"]:
             continue
-
-        # primary: how many cars in this lane would we block (they leave before us)
-        blocking = sum(1 for p in slot["stack"] if minutes > p["minutes"])
-
-        if blocking > 0:
-            # prefer blocking cars with the most time left — less urgent conflict,
-            # more chance we actually leave before them given ±50% return variance
-            min_blocked = min(p["minutes"] for p in slot["stack"] if minutes > p["minutes"])
-            secondary = -min_blocked  # more negative = higher minutes = less urgent
-            empty_depth = 0
-        else:
-            secondary = 0
-            # prefer single-deep when conflict-free — they can never cause a reshuffle
-            empty_depth = slot["max"] if slot["max"] > 1 else 0
-
-        score = (blocking, secondary, empty_depth)
-        if score < best_score:
-            best_score, best_slot = score, name
-
+        cost = sum(1 for p in slot["stack"] if bucket > p["bucket"])
+        if cost < best_cost:
+            best_cost, best_slot = cost, name
     if best_slot is None:
         return
     lot[best_slot]["stack"].append({"id": car_id, "bucket": bucket, "minutes": minutes})
