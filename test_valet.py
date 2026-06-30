@@ -45,7 +45,7 @@ def test_retrieve_nonexistent_no_crash():
     assert main.retrieve_car_from("ghost", lot) == 0
 
 
-def test_smart_beats_random_15_lanes_300_cars():
+def test_smart_beats_random_300_cars():
     random.seed(42)
     raw = [(f"car_{i}", random.randint(0, 480), random.randint(10, 300)) for i in range(300)]
     shift_cars = [
