@@ -1,15 +1,5 @@
 import random
 
-def get_bucket(minutes):
-    # asking the customer how long theyll be when they drop off
-    if minutes < 60:
-        return 0  # quick errand or fast dinner, back soon
-    elif minutes < 240:
-        return 1  # normal dinner, maybe walking around after, few hours
-    else:
-        return 2  # padres game, long event, staying all night
-
-
 def make_slots():
     # 20 single-deep, 30 double-deep, 20 triple-deep = 70 lanes
     return (
@@ -18,9 +8,7 @@ def make_slots():
         {f"C{i:02d}": {"stack": [], "max": 3} for i in range(1, 21)}
     )
 
-# smart version that works on a passed-in slots dict instead of global
 def park_car_smart(car_id, minutes, lot):
-    bucket = get_bucket(minutes)
     best_slot, best_score = None, (999, 999, 999)
     for name, slot in lot.items():
         if len(slot["stack"]) >= slot["max"]:
@@ -38,15 +26,13 @@ def park_car_smart(car_id, minutes, lot):
             best_score, best_slot = score, name
     if best_slot is None:
         return
-    lot[best_slot]["stack"].append({"id": car_id, "bucket": bucket, "minutes": minutes})
+    lot[best_slot]["stack"].append({"id": car_id, "minutes": minutes})
 
-# baseline: pick a random available lane, no bucket logic
 def park_car_random(car_id, minutes, lot):
-    bucket = get_bucket(minutes)
     available = [slot for slot in lot.values() if len(slot["stack"]) < slot["max"]]
     if not available:
         return
-    random.choice(available)["stack"].append({"id": car_id, "bucket": bucket, "minutes": minutes})
+    random.choice(available)["stack"].append({"id": car_id, "minutes": minutes})
 
 def retrieve_car_from(car_id, lot):
     reshuffles = 0
@@ -112,9 +98,9 @@ if __name__ == "__main__":
     lot_smart = mini_lot()
     lot_rand  = mini_lot()
 
-    lot_smart["B"]["stack"] = [{"id": "short_car", "bucket": 0}]
-    lot_smart["C"]["stack"] = [{"id": "long_car",  "bucket": 2}]
-    lot_rand["B"]["stack"]  = [{"id": "short_car", "bucket": 0}, {"id": "long_car", "bucket": 2}]
+    lot_smart["B"]["stack"] = [{"id": "short_car"}]
+    lot_smart["C"]["stack"] = [{"id": "long_car"}]
+    lot_rand["B"]["stack"]  = [{"id": "short_car"}, {"id": "long_car"}]
 
     smart_r = retrieve_car_from("short_car", lot_smart)
     rand_r  = retrieve_car_from("short_car", lot_rand)
