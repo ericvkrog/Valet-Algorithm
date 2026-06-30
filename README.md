@@ -7,21 +7,21 @@ The lot has 70 lanes: 20 single-deep, 30 double-deep, and 20 triple-deep. A full
 ## How to run the simulation
 
 ```
-python main.py
+python3 main.py
 ```
 
 ## How to run the tests
 
 ```
-pytest test_valet.py
+python3 -m pytest test_valet.py
 ```
 
-Requires pytest (`pip install pytest`).
+Requires pytest (`pip3 install pytest`).
 
 ## How to run the benchmark
 
 ```
-python benchmark.py
+python3 benchmark.py
 ```
 
 Prints total reshuffles, runtime, and peak memory usage for both algorithms.
