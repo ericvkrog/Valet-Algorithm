@@ -21,13 +21,21 @@ def make_slots():
 # smart version that works on a passed-in slots dict instead of global
 def park_car_smart(car_id, minutes, lot):
     bucket = get_bucket(minutes)
-    best_slot, best_cost = None, 999
+    best_slot, best_score = None, (999, 999, 999)
     for name, slot in lot.items():
         if len(slot["stack"]) >= slot["max"]:
             continue
-        cost = sum(1 for p in slot["stack"] if bucket > p["bucket"])
-        if cost < best_cost:
-            best_cost, best_slot = cost, name
+        blocking = sum(1 for p in slot["stack"] if minutes > p["minutes"])
+        if blocking > 0:
+            min_blocked = min(p["minutes"] for p in slot["stack"] if minutes > p["minutes"])
+            secondary = -min_blocked
+            empty_depth = 0
+        else:
+            secondary = 0
+            empty_depth = slot["max"] if slot["max"] > 1 else 0
+        score = (blocking, secondary, empty_depth)
+        if score < best_score:
+            best_score, best_slot = score, name
     if best_slot is None:
         return
     lot[best_slot]["stack"].append({"id": car_id, "bucket": bucket, "minutes": minutes})
